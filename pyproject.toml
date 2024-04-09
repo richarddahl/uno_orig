@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "uno"
+dynamic = ["version"]
+description = 'UNO is NOT an ORM'
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+keywords = []
+authors = [{ name = "Richard Dahl", email = "richard@dahl.us" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Framework :: FastAPI",
+  "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+  "alembic",
+  "argon2-cffi",
+  "argon2-cffi-bindings",
+  "alembic_postgresql_enum",
+  "fastapi",
+  "uvicorn",
+  "psycopg[binary]",
+  "sqlalchemy[asyncio]",
+  "sqlalchemy-utils",
+  "pydantic[email]",
+  "pydantic-settings",
+  "pydantic-core",
+  "argon2-cffi",
+  "babel",
+  "jinja2",
+  "python-jose",
+  "python-multipart",
+  "python-dotenv",
+]
+
+[project.urls]
+Documentation = "https://github.com/richarddahl/uno#readme"
+Issues = "https://github.com/richarddahl/uno/issues"
+Source = "https://github.com/richarddahl/uno"
+
+[tool.hatch.version]
+path = "src/uno/__about__.py"
+
+[tool.hatch.envs.default]
+path = ".hatch"
+dependencies = ["coverage[toml]>=6.5", "pytest", "pytest_asyncio", "asyncio"]
+
+[tool.hatch.envs.default.scripts]
+test = "pytest -v --capture=tee-sys {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+test-html = "coverage html"
+cov-report = ["- coverage combine", "coverage report"]
+cov = ["test-cov", "cov-report"]
+dropdb = "python src/commands/drop_db.py"
+createdb = "python src/commands/create_db.py"
+
+
+[[tool.hatch.envs.all.matrix]]
+python = ["3.12"]
+
+[tool.hatch.envs.types]
+dependencies = ["mypy>=1.0.0"]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/uno tests}"
+
+[tool.coverage.run]
+source_pkgs = ["uno", "tests"]
+branch = true
+parallel = true
+omit = ["src/uno/__about__.py"]
+
+[tool.coverage.paths]
+uno = ["src/uno", "*/uno/src/uno"]
+tests = ["tests", "*/uno/tests"]
+
+[tool.coverage.report]
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
