@@ -171,3 +171,4 @@ scratch.py
 * copy.*
 pyproject copy.toml
 .DS_Store
+bandit.txt

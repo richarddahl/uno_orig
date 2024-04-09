@@ -38,6 +38,8 @@ dependencies = [
   "python-jose",
   "python-multipart",
   "python-dotenv",
+  "safety",
+  "bandit",
 ]
 
 [project.urls]
