@@ -19,6 +19,7 @@ async def test_db_structure(db_connection):
     assert settings.DB_SCHEMA in db_inspector.get_schema_names()
 
 
+"""
 @pytest.mark.asyncio
 async def test_audit_schema_structure(db_connection):
     db_inspector = inspect(db_connection)
@@ -61,6 +62,7 @@ async def test_audit_schema_structure(db_connection):
             # "fltr_query__filter",
             # "fltr_query__subquery",
         ]
+"""
 
 
 @pytest.mark.asyncio

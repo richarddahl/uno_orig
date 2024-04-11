@@ -7,9 +7,7 @@ from sqlalchemy import create_engine, text  # type: ignore
 from sqlalchemy.exc import ProgrammingError
 
 from sql.pysql.base_sql import (
-    drop_database,
     CREATE_ROLES,
-    create_database,
     CREATE_SCHEMAS,
     SET_SEARCH_PATHS,
     REVOKE_ACCESS,
@@ -18,11 +16,11 @@ from sql.pysql.base_sql import (
     CREATE_UPDATE_META_RECORD_FUNCTION,
     CREATE_IS_SUPERUSER_FUNCTION,
     CREATE_IS_CUSTOMER_ADMIN_FUNCTION,
-    # CREATE_LOGIN_VIEW,
+    create_database,
     update_meta_trigger,
     enable_rls,
 )  # type: ignore
-from sql.pysql.auditing_sql import create_audit_table, enable_auditing  # type: ignore
+
 from sql.pysql.group_sql import (
     CREATE_GROUP_FOR_CUSTOMER_FUNCTION,
     CREATE_GROUP_FOR_CUSTOMER_TRIGGER,
@@ -38,21 +36,16 @@ from config import settings  # type: ignore
 
 DB_AUDITED_TABLES = [
     "auth.user",
-    # "auth.user_admin",
     "auth.group",
     "auth.customer",
-    # Group Permission records auto-generated based on insert to group, they never change
-    # "group_permission", # Records auto-generated based on insert to group, they never change
     "auth.role",
     "fltr.field",
     "fltr.filter",
     "fltr.query",
-    # TODO - Add the following tables to the list of audited tables
-    # once the auditing function accepts compound-pk tables
-    # "auth.role__group_permission",
-    # "auth.user__role",
-    # "fltr.query__filter",
-    # "fltr.query__subquery",
+    "auth.role__group_permission",
+    "auth.user__role",
+    "fltr.query__filter",
+    "fltr.query__subquery",
 ]
 
 
@@ -72,6 +65,10 @@ def create_db(testing: bool = False):
         print(
             f"Creating the db: {db_name}, and all the roles, users, and schema for the application."
         )
+        conn.execute(text("SET pgaudit.log = 'all';"))
+        conn.execute(text("SET pgaudit.log_relation = on;"))
+        conn.execute(text("SET pgaudit.log_line_prefix = '%m %u %d [%p]: ';"))
+
         try:
             # Create the roles
             print("Creating the roles")
@@ -79,9 +76,12 @@ def create_db(testing: bool = False):
         except ProgrammingError:
             print("Roles already exist")
 
-        # Create the database
-        print("Creating the database")
-        conn.execute(text(create_database(db_name)))
+        try:
+            # Create the database
+            print("Creating the database")
+            conn.execute(text(create_database(db_name)))
+        except ProgrammingError:
+            print("Database already exists")
 
         conn.close()
     eng.dispose()
@@ -89,16 +89,22 @@ def create_db(testing: bool = False):
     # Connect to the new database as the postgres user
     print("")
     print(
-        "Connecting to new database creating the schemas, functions, and triggers, and setting the privileges and search paths."
+        """
+        Connecting to new database creating the schemas, functions, and triggers, and 
+        setting the privileges and search paths."
+        """
     )
     eng = create_engine(
         f"{settings.DB_DRIVER}://postgres@/{db_name}",
         echo=False,
     )
     with eng.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        # Create the schemas
-        print("Creating the schemas")
-        conn.execute(text(CREATE_SCHEMAS))
+        try:
+            # Create the schemas
+            print("Creating the schemas")
+            conn.execute(text(CREATE_SCHEMAS))
+        except ProgrammingError:
+            print("Schemas already exist")
 
         # Revoke access to the schemas
         print("Revoking public access to schemas")
@@ -112,18 +118,34 @@ def create_db(testing: bool = False):
         with open("src/sql/pgulid.sql", "r") as f:
             CREATE_PGULID = f.read()
         f.close()
-        conn.execute(text("SET SESSION search_path TO audit"))
-        print("Creating the pgulid function")
-        conn.execute(text(CREATE_PGULID))
+        try:
+            conn.execute(text("SET SESSION search_path TO audit"))
+            print("Creating the pgulid function")
+            conn.execute(text(CREATE_PGULID))
+        except ProgrammingError:
+            print("pgulid function already exists")
 
-        print("Creating the insert meta record function")
-        conn.execute(text(CREATE_INSERT_META_RECORD_FUNCTION))
+        try:
+            print("Creating the insert meta record function")
+            conn.execute(text(CREATE_INSERT_META_RECORD_FUNCTION))
+        except ProgrammingError:
+            print("insert_meta_record function already exists")
 
-        print("Creating the update meta record function")
-        conn.execute(text(CREATE_UPDATE_META_RECORD_FUNCTION))
+        try:
+            print("Creating the update meta record function")
+            conn.execute(text(CREATE_UPDATE_META_RECORD_FUNCTION))
+        except ProgrammingError:
+            print("update_meta_record function already exists")
+
+        print("Creating the btree_gist extension")
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gist;"))
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgaudit;"))
+        conn.execute(text("CREATE EXTENSION supa_audit CASCADE;"))
 
         conn.close()
+
     eng.dispose()
+
     if testing is True:
         alembic_cfg = Config("./alembic.ini", ini_section="alembic-test")
     else:
@@ -133,30 +155,16 @@ def create_db(testing: bool = False):
             autogenerate=True,
             message="Initial Revision",
         )
-    print("")
-    print("Creating the tables")
     command.upgrade(alembic_cfg, "head")
 
     eng = create_engine(
-        f"{settings.DB_DRIVER}://{settings.DB_SCHEMA}_authenticator@/{db_name}",
+        # f"{settings.DB_DRIVER}://{settings.DB_SCHEMA}_authenticator@/{db_name}",
+        f"{settings.DB_DRIVER}://postgres@/{db_name}",
         echo=False,
     )
     with eng.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text(f"SET ROLE {settings.DB_SCHEMA}_admin"))
-
         conn.execute(
             text(f"SET SESSION search_path TO audit, auth, fltr, {settings.DB_SCHEMA}")
-        )
-
-        print("Creating the can_insert_group function")
-        conn.execute(text(CREATE_CAN_INSERT_GROUP_FUNCTION))
-        conn.execute(
-            text(
-                """
-                ALTER TABLE auth.group ADD CONSTRAINT ck_can_insert_group
-                CHECK (auth.can_insert_group(customer_id));
-                """
-            )
         )
 
         try:
@@ -168,7 +176,18 @@ def create_db(testing: bool = False):
             print(e)
             print("")
 
-        # conn.execute(text(CREATE_LOGIN_VIEW))
+        conn.execute(text(f"SET ROLE {settings.DB_SCHEMA}_admin;"))
+        print("Creating the can_insert_group function")
+        conn.execute(text(CREATE_CAN_INSERT_GROUP_FUNCTION))
+        conn.execute(
+            text(
+                """
+                ALTER TABLE auth.group ADD CONSTRAINT ck_can_insert_group
+                CHECK (auth.can_insert_group(customer_id));
+                """
+            )
+        )
+
         print("")
         print("Creating Group and Group Permission functions and triggers")
         conn.execute(text(CREATE_GROUP_FOR_CUSTOMER_FUNCTION))
@@ -183,8 +202,12 @@ def create_db(testing: bool = False):
             table = Base.metadata.tables[table_name]
             print(f"Enabling AUDITING for {table_name}")
             try:
-                conn.execute(text(create_audit_table(table_name)))
-                conn.execute(text(enable_auditing(table_name)))
+                # conn.execute(text(create_audit_table(table_name)))
+                # conn.execute(text(enable_auditing(table_name)))
+                conn.execute(
+                    text(f"SELECT audit.enable_tracking('{table_name}'::regclass);")
+                )
+
                 for fk_constraint in table.foreign_key_constraints:
                     if fk_constraint.referred_table.name == "meta":
                         conn.execute(text(update_meta_trigger(table_name)))
@@ -195,8 +218,12 @@ def create_db(testing: bool = False):
             table = Base.metadata.tables[table_name]
             print(f"Enabling AUDITING for {table_name}")
             try:
-                conn.execute(text(create_audit_table(table_name)))
-                conn.execute(text(enable_auditing(table_name)))
+                conn.execute(
+                    text(f"SELECT audit.enable_tracking('{table_name}'::regclass);")
+                )
+                # conn.execute(text(create_audit_table(table_name)))
+                # conn.execute(text(enable_auditing(table_name)))
+
                 for fk_constraint in table.foreign_key_constraints:
                     if fk_constraint.referred_table.name == "meta":
                         conn.execute(text(update_meta_trigger(table_name)))

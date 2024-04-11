@@ -92,6 +92,9 @@ REVOKE ALL ON SCHEMA fltr FROM public;
 
 
 CONFIGURE_PRIVILEGES = f"""
+ALTER SCHEMA audit OWNER TO {settings.DB_SCHEMA}_admin;
+ALTER TABLE audit.record_version OWNER TO {settings.DB_SCHEMA}_admin;
+
 -- Grant connect privileges to the authenticator
 GRANT CONNECT ON DATABASE {settings.DB_NAME} TO {settings.DB_SCHEMA}_authenticator;
 
@@ -103,8 +106,8 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth, audit, fltr, {settings.DB_SCHEMA}
 
 GRANT SELECT ON ALL TABLES IN SCHEMA auth, audit, fltr, {settings.DB_SCHEMA} TO {settings.DB_SCHEMA}_reader;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth, {settings.DB_SCHEMA} TO {settings.DB_SCHEMA}_writer;
-GRANT SELECT, INSERT, UPDATE ON TABLE audit.meta TO {settings.DB_SCHEMA}_writer;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA audit, auth, fltr, {settings.DB_SCHEMA} TO {settings.DB_SCHEMA}_writer;
+GRANT SELECT, INSERT, UPDATE ON TABLE audit.meta TO {settings.DB_SCHEMA}_writer, {settings.DB_SCHEMA}_admin;
 REVOKE UPDATE (id, created_at) ON TABLE audit.meta FROM public;
 REVOKE UPDATE ON ALL TABLES IN SCHEMA audit FROM public;
 
@@ -181,6 +184,13 @@ def enable_rls(schema_name: str, table_name: str):
     return f"""
         -- Enable RLS for the table
         ALTER TABLE {schema_name}.{table_name} ENABLE ROW LEVEL SECURITY;
+    """
+
+
+def enable_auditing(table_name: str):
+    return f"""
+        -- Enable auditing for the table
+        SELECT audit.audit_table('{table_name}');
     """
 
 

@@ -28,7 +28,6 @@ dependencies = [
   "uvicorn",
   "psycopg[binary]",
   "sqlalchemy[asyncio]",
-  "sqlalchemy-utils",
   "pydantic[email]",
   "pydantic-settings",
   "pydantic-core",

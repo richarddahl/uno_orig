@@ -38,7 +38,11 @@ class User(Base):
             name="ck_user_is_superuser_customer_id",
         ),
         CheckConstraint(
-            "is_superuser = 'true' AND is_customer_admin = 'false'",
+            """
+                is_superuser = 'true' AND customer_id IS NULL AND is_customer_admin = 'false' OR
+                is_superuser = 'false' AND is_customer_admin = 'true' AND customer_id IS NOT NULL OR
+                is_superuser = 'false' AND is_customer_admin = 'false' AND customer_id IS NOT NULL
+            """,
             name="ck_user_is_superuser_and_not_customer_admin",
         ),
         {"schema": "auth", "comment": "Application end-users"},

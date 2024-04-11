@@ -91,6 +91,14 @@ async def test_create_customers(async_session):
     assert len(groups) == 1
     assert groups[0].__str__() == "Individual - Individual"
 
+    customer_1.name = "Still an Individual"
+    async_session.add(customer_1)
+    await async_session.flush()
+
+    customer_1.name = "Individual"
+    async_session.add(customer_1)
+    await async_session.flush()
+
     # Test creation of the group_permissions for customer_2
     groups = await customer_2.awaitable_attrs.groups
 

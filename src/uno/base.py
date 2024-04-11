@@ -42,6 +42,7 @@ POSTGRES_INDEXES_NAMING_CONVENTION = {
 # Creates the metadata object, used to define the database tables
 meta_data = MetaData(
     naming_convention=POSTGRES_INDEXES_NAMING_CONVENTION,
+    schema="audit",
 )
 
 str_26 = Annotated[str, 26]
