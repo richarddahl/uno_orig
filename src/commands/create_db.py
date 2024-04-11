@@ -202,8 +202,6 @@ def create_db(testing: bool = False):
             table = Base.metadata.tables[table_name]
             print(f"Enabling AUDITING for {table_name}")
             try:
-                # conn.execute(text(create_audit_table(table_name)))
-                # conn.execute(text(enable_auditing(table_name)))
                 conn.execute(
                     text(f"SELECT audit.enable_tracking('{table_name}'::regclass);")
                 )
@@ -221,8 +219,6 @@ def create_db(testing: bool = False):
                 conn.execute(
                     text(f"SELECT audit.enable_tracking('{table_name}'::regclass);")
                 )
-                # conn.execute(text(create_audit_table(table_name)))
-                # conn.execute(text(enable_auditing(table_name)))
 
                 for fk_constraint in table.foreign_key_constraints:
                     if fk_constraint.referred_table.name == "meta":
