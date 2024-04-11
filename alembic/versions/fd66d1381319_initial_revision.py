@@ -1,8 +1,8 @@
 """Initial Revision
 
-Revision ID: f99ffad48cb5
+Revision ID: fd66d1381319
 Revises: 
-Create Date: 2024-04-11 16:52:25.842970
+Create Date: 2024-04-11 17:04:18.944656
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'f99ffad48cb5'
+revision: str = 'fd66d1381319'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -97,8 +97,7 @@ def upgrade() -> None:
     sa.Column('is_locked', sa.BOOLEAN(), server_default=sa.text('false'), nullable=False),
     sa.Column('is_suspended', sa.BOOLEAN(), server_default=sa.text('false'), nullable=False),
     sa.Column('suspension_expiration', postgresql.TIMESTAMP(timezone=True), nullable=True),
-    sa.CheckConstraint("\n                is_superuser = 'true' AND customer_id IS NULL AND is_customer_admin = 'false' OR\n                is_superuser = 'false' AND is_customer_admin = 'true' AND customer_id IS NOT NULL OR\n                is_superuser = 'false' AND is_customer_admin = 'false' AND customer_id IS NOT NULL\n            ", name='ck_user_is_superuser_and_not_customer_admin'),
-    sa.CheckConstraint("is_superuser = 'false' AND customer_id IS NOT NULL OR is_superuser = 'true' AND customer_id IS NULL", name='ck_user_is_superuser_customer_id'),
+    sa.CheckConstraint("\n                is_superuser = 'true' AND customer_id IS NULL OR\n                is_customer_admin = 'true' AND customer_id IS NOT NULL OR\n                is_superuser = 'false' AND is_customer_admin = 'false' AND customer_id IS NOT NULL\n            ", name='ck_user_is_superuser_and_not_customer_admin'),
     sa.ForeignKeyConstraint(['customer_id'], ['auth.customer.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['id'], ['audit.meta.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
