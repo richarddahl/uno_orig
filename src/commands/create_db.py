@@ -130,8 +130,8 @@ def create_db(testing: bool = False):
         print("Creating the btree_gist extension")
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gist;"))
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgaudit;"))
-        conn.execute(text("CREATE EXTENSION supa_audit CASCADE;"))
-        conn.execute(text("CREATE EXTENSION age;"))
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS supa_audit CASCADE;"))
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS age;"))
         conn.execute(text("LOAD 'age';"))
 
         conn.close()
@@ -158,6 +158,7 @@ def create_db(testing: bool = False):
         conn.execute(
             text(f"SET SESSION search_path TO audit, auth, fltr, {settings.DB_SCHEMA}")
         )
+        """
         conn.execute(text("SELECT * FROM ag_catalog.create_graph('auth_graph');"))
         conn.execute(text("ALTER SCHEMA auth_graph OWNER TO uno_admin;"))
         conn.execute(text("ALTER TABLE auth_graph._ag_label_edge OWNER TO uno_admin;"))
@@ -193,6 +194,7 @@ def create_db(testing: bool = False):
         conn.execute(
             text("ALTER SEQUENCE fltr_graph._label_id_seq OWNER TO uno_admin;")
         )
+        """
 
         try:
             # Grant necessary access to the schemas
@@ -249,6 +251,7 @@ def create_db(testing: bool = False):
                     except Exception as e:
                         print(e)
                         print("")
+                """
                 if table_info.get("graph") is not None:
                     try:
                         print(f"Creating Graph Nodes and Edges for Table: {table_name}")
@@ -307,6 +310,7 @@ def create_db(testing: bool = False):
                         pass
                     conn.execute(text(create_graph_function(table)))
                     conn.execute(text(create_graph_trigger(table)))
+                """
 
         conn.close()
     eng.dispose()
