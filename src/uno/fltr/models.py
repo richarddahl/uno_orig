@@ -34,7 +34,11 @@ class Field(Base):
     __tablename__ = "field"
     __table_args__ = (
         UniqueConstraint("table_name", "field_name"),
-        {"schema": "fltr", "comment": "Describes a column in a db table."},
+        {
+            "schema": "fltr",
+            "comment": "Describes a column in a db table.",
+            "info": {"graph": "fltr_graph", "audited": True},
+        },
     )
 
     # Columns
@@ -157,7 +161,11 @@ class Filter(Base):
             """,
             name="ck_related_object",
         ),
-        {"schema": "fltr", "comment": "A db column bound to a value."},
+        {
+            "schema": "fltr",
+            "comment": "A db column bound to a value.",
+            "info": {"graph": "fltr_graph", "audited": True},
+        },
     )
 
     # Columns
@@ -240,7 +248,11 @@ class Query(Base):
     __table_args__ = (
         UniqueConstraint("group_id", "name"),
         Index("ix_group_id_name_user_query", "group_id", "name"),
-        {"schema": "fltr", "comment": "Filter queries"},
+        {
+            "schema": "fltr",
+            "comment": "Filter queries",
+            "info": {"graph": "fltr_graph", "audited": True},
+        },
     )
 
     # Columns
@@ -328,6 +340,7 @@ query_filter = Table(
         nullable=False,
     ),
     schema="fltr",
+    info={"association_graph": "fltr_graph", "audited": True},
 )
 
 query_subquery = Table(
@@ -348,4 +361,5 @@ query_subquery = Table(
         nullable=False,
     ),
     schema="fltr",
+    info={"association_graph": "fltr_graph", "audited": True},
 )

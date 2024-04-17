@@ -41,7 +41,11 @@ class User(Base):
             """,
             name="ck_user_is_superuser_and_not_customer_admin",
         ),
-        {"schema": "auth", "comment": "Application end-users"},
+        {
+            "schema": "auth",
+            "comment": "Application end-users",
+            "info": {"graph": "auth_graph", "audited": True},
+        },
     )
 
     # Columns
@@ -129,7 +133,13 @@ class HashedPassword(Base):
 
 class Customer(Base):
     __tablename__ = "customer"
-    __table_args__ = ({"schema": "auth", "comment": "Application end-user customers"},)
+    __table_args__ = (
+        {
+            "schema": "auth",
+            "comment": "Application end-user customers",
+            "info": {"graph": "auth_graph", "audited": True},
+        },
+    )
 
     # Columns
     id: Mapped[str_26] = mapped_column(
@@ -172,6 +182,7 @@ class Group(Base):
         {
             "schema": "auth",
             "comment": "Application end-user groups, child groups can be created for granular access control",
+            "info": {"graph": "auth_graph", "audited": True},
         },
     )
 
@@ -241,19 +252,20 @@ class GroupPermission(Base):
         {
             "schema": "auth",
             "comment": """
-            Permissions assigned to a group.
-            Created automatically by the DB via a trigger when a new group is created.
-            group_permission records are created for each group with the following combinations of permissions:
-                [READ]
-                [READ, CREATE]
-                [READ, CREATE, UPDATE]
-                [READ, CREATE, DELETE]
-                [READ, CREATE, UPDATE, DELETE]
-                [READ, UPDATE]
-                [READ, UPDATE, DELETE]
-                [READ, DELETE]
-            Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.
-        """,
+                Permissions assigned to a group.
+                Created automatically by the DB via a trigger when a new group is created.
+                group_permission records are created for each group with the following combinations of permissions:
+                    [READ]
+                    [READ, CREATE]
+                    [READ, CREATE, UPDATE]
+                    [READ, CREATE, DELETE]
+                    [READ, CREATE, UPDATE, DELETE]
+                    [READ, UPDATE]
+                    [READ, UPDATE, DELETE]
+                    [READ, DELETE]
+                Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.
+            """,
+            "info": {"graph": "auth_graph", "audited": True},
         },
     )
 
@@ -290,6 +302,7 @@ class Role(Base):
                 Roles, created by end user group admins, enable assignment of group_permissions
                 by functionality, department, etc... to users.
             """,
+            "info": {"graph": "auth_graph", "audited": True},
         },
     )
 
@@ -356,6 +369,7 @@ role_group_permission = Table(
     ),
     comment="Assigned by customer_admin users to assign group_permissions to roles based on organization requirements.",
     schema="auth",
+    info={"association_graph": "auth_graph", "audited": True},
 )
 
 
@@ -383,4 +397,5 @@ user_role = Table(
     ),
     comment="Assigned by customer_admin users to assign roles to users based on organization requirements.",
     schema="auth",
+    info={"association_graph": "auth_graph", "audited": True},
 )

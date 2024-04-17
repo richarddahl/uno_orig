@@ -100,7 +100,7 @@ GRANT CONNECT ON DATABASE {settings.DB_NAME} TO {settings.DB_SCHEMA}_authenticat
 
 -- Grant usage privileges for users to created schemas
 -- authenticator needs usage as it is used by the inspector in testing
-GRANT USAGE ON SCHEMA auth, audit, fltr, {settings.DB_SCHEMA} TO {settings.DB_SCHEMA}_authenticator, {settings.DB_SCHEMA}_admin, {settings.DB_SCHEMA}_reader, {settings.DB_SCHEMA}_writer;
+GRANT USAGE ON SCHEMA auth, audit, fltr, ag_catalog, {settings.DB_SCHEMA} TO {settings.DB_SCHEMA}_authenticator, {settings.DB_SCHEMA}_admin, {settings.DB_SCHEMA}_reader, {settings.DB_SCHEMA}_writer;
 
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth, audit, fltr, {settings.DB_SCHEMA} TO {settings.DB_SCHEMA}_authenticator, {settings.DB_SCHEMA}_admin, {settings.DB_SCHEMA}_writer;
 
