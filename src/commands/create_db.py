@@ -31,8 +31,10 @@ from sql.pysql.group_sql import (
 )  # type: ignore
 
 from sql.pysql.graph_sql import (
-    create_graph_function,
-    create_graph_trigger,
+    create_vertex_function,
+    create_vertex_trigger,
+    create_edge_function,
+    create_edge_trigger,
 )  # type: ignore
 
 from uno.base import Base
@@ -132,8 +134,7 @@ def create_db(testing: bool = False):
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgaudit;"))
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS supa_audit CASCADE;"))
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS age;"))
-        conn.execute(text("LOAD 'age';"))
-
+        conn.execute(text("ALTER SCHEMA ag_catalog OWNER TO uno_admin;"))
         conn.close()
 
     eng.dispose()
@@ -156,45 +157,25 @@ def create_db(testing: bool = False):
     )
     with eng.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(
-            text(f"SET SESSION search_path TO audit, auth, fltr, {settings.DB_SCHEMA}")
-        )
-        """
-        conn.execute(text("SELECT * FROM ag_catalog.create_graph('auth_graph');"))
-        conn.execute(text("ALTER SCHEMA auth_graph OWNER TO uno_admin;"))
-        conn.execute(text("ALTER TABLE auth_graph._ag_label_edge OWNER TO uno_admin;"))
-        conn.execute(
-            text("ALTER TABLE auth_graph._ag_label_vertex OWNER TO uno_admin;")
-        )
-        conn.execute(
-            text("ALTER SEQUENCE auth_graph._ag_label_edge_id_seq OWNER TO uno_admin;")
+            text(f"ALTER SCHEMA ag_catalog OWNER TO {settings.DB_SCHEMA}_admin;")
         )
         conn.execute(
             text(
-                "ALTER SEQUENCE auth_graph._ag_label_vertex_id_seq OWNER TO uno_admin;"
+                f"SET SESSION search_path TO audit, auth, fltr, ag_catalog, {settings.DB_SCHEMA}"
             )
-        )
-        conn.execute(
-            text("ALTER SEQUENCE auth_graph._label_id_seq OWNER TO uno_admin;")
         )
 
-        conn.execute(text("SELECT * FROM ag_catalog.create_graph('fltr_graph');"))
-        conn.execute(text("ALTER SCHEMA fltr_graph OWNER TO uno_admin;"))
-        conn.execute(text("ALTER TABLE fltr_graph._ag_label_edge OWNER TO uno_admin;"))
+        conn.execute(text("SELECT * FROM ag_catalog.create_graph('graph');"))
+        conn.execute(text("ALTER SCHEMA graph OWNER TO uno_admin;"))
+        conn.execute(text("ALTER TABLE graph._ag_label_edge OWNER TO uno_admin;"))
+        conn.execute(text("ALTER TABLE graph._ag_label_vertex OWNER TO uno_admin;"))
         conn.execute(
-            text("ALTER TABLE fltr_graph._ag_label_vertex OWNER TO uno_admin;")
+            text("ALTER SEQUENCE graph._ag_label_edge_id_seq OWNER TO uno_admin;")
         )
         conn.execute(
-            text("ALTER SEQUENCE fltr_graph._ag_label_edge_id_seq OWNER TO uno_admin;")
+            text("ALTER SEQUENCE graph._ag_label_vertex_id_seq OWNER TO uno_admin;")
         )
-        conn.execute(
-            text(
-                "ALTER SEQUENCE fltr_graph._ag_label_vertex_id_seq OWNER TO uno_admin;"
-            )
-        )
-        conn.execute(
-            text("ALTER SEQUENCE fltr_graph._label_id_seq OWNER TO uno_admin;")
-        )
-        """
+        conn.execute(text("ALTER SEQUENCE graph._label_id_seq OWNER TO uno_admin;"))
 
         try:
             # Grant necessary access to the schemas
@@ -227,8 +208,6 @@ def create_db(testing: bool = False):
         conn.execute(text(CREATE_IS_CUSTOMER_ADMIN_FUNCTION))
         conn.execute(text(CREATE_GET_ALL_PERMISSIBLE_GROUPS_FUNCTION))
 
-        conn.execute(text("RESET ROLE;"))
-        conn.execute(text("LOAD 'age';"))
         for table_name in Base.metadata.tables.keys():
             table = Base.metadata.tables[table_name]
 
@@ -238,7 +217,7 @@ def create_db(testing: bool = False):
 
             table_info = table.info
             if table_info is not None:
-                if table_info.get("audited") is True:
+                if table_info.get("audited", False) is True:
                     print("")
                     print(f"Enabling AUDITING for {table_name}")
                     try:
@@ -251,66 +230,40 @@ def create_db(testing: bool = False):
                     except Exception as e:
                         print(e)
                         print("")
-                """
-                if table_info.get("graph") is not None:
+
+                graph = table.info.get("graph", False)
+                if graph is True:
+                    try:
+                        print(
+                            f"Creating Graph Trigger Function for Table: {table_name}"
+                        )
+                    except Exception as e:
+                        print(e)
+                        print("")
+                    conn.execute(text(create_vertex_function(table)))
+                    conn.execute(text(create_vertex_trigger(table)))
                     try:
                         print(f"Creating Graph Nodes and Edges for Table: {table_name}")
                         conn.execute(
                             text(
-                                f"SELECT ag_catalog.create_vlabel('{table.info.get("graph")}', '{table.name}')"
+                                f"SELECT ag_catalog.create_vlabel('graph', '{table.name.title()}')"
                             )
                         )
                         for column in table.columns:
-                            if column.foreign_keys:
-                                for fk in column.foreign_keys:
-                                    try:
-                                        conn.execute(
-                                            text(
-                                                f"SELECT ag_catalog.create_elabel('{table.info.get("graph")}', '{fk.column.table.name.upper().replace('_ID', '')}')"
-                                            )
+                            edge_start = column.info.get("edge_start", None)
+                            if edge_start is not None:
+                                try:
+                                    conn.execute(
+                                        text(
+                                            f"SELECT ag_catalog.create_elabel('graph', '{edge_start}')"
                                         )
-                                    except Exception as e:
-                                        pass
-                                        # print(e)
-                                        # print("")
-                            # else:
-                            #    try:
-                            #        conn.execute(
-                            #            text(
-                            #                f"SELECT ag_catalog.create_elabel('{table.info.get("graph")}', '{column.name.upper()}')"
-                            #            )
-                            #        )
-                            #    except Exception:
-                            #        pass
+                                    )
+                                except Exception as e:
+                                    print(e)
+                                    print("")
                     except Exception as e:
-                        pass
-                        # print(e)
-                        # print("")
-                    print(f"Creating Graph Trigger Function for Table: {table_name}")
-                    conn.execute(text(create_graph_function(table)))
-                    conn.execute(text(create_graph_trigger(table)))
-
-                if table_info.get("association_graph") is not None:
-                    try:
-                        print(
-                            f"Creating Graph Edges for Association Table: {table_name}"
-                        )
-                        for column in table.columns:
-                            if column.foreign_keys:
-                                for fk in column.foreign_keys:
-                                    try:
-                                        conn.execute(
-                                            text(
-                                                f"SELECT ag_catalog.create_elabel('{table.info.get("association_graph")}', '{fk.column.table.name.upper().replace('_ID', '')}')"
-                                            )
-                                        )
-                                    except Exception:
-                                        pass
-                    except Exception:
-                        pass
-                    conn.execute(text(create_graph_function(table)))
-                    conn.execute(text(create_graph_trigger(table)))
-                """
+                        print(e)
+                        print("")
 
         conn.close()
     eng.dispose()

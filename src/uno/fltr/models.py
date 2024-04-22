@@ -37,7 +37,7 @@ class Field(Base):
         {
             "schema": "fltr",
             "comment": "Describes a column in a db table.",
-            "info": {"graph": "fltr_graph", "audited": True},
+            "info": {"graph": True, "audited": True},
         },
     )
 
@@ -47,6 +47,7 @@ class Field(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
+        info={"key_property": True},
     )
     table_name: Mapped[str_255] = mapped_column(index=True)
     field_name: Mapped[str_255] = mapped_column()
@@ -164,7 +165,7 @@ class Filter(Base):
         {
             "schema": "fltr",
             "comment": "A db column bound to a value.",
-            "info": {"graph": "fltr_graph", "audited": True},
+            "info": {"graph": True, "audited": True},
         },
     )
 
@@ -174,20 +175,24 @@ class Filter(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
+        info={"key_property": True},
     )
     user_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.user.id", ondelete="CASCADE"),
         index=True,
         default=set_owner_id,
+        info={"edge_start": "CREATED_BY"},
     )
     group_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.group.id", ondelete="CASCADE"),
         index=True,
         default=set_group_id,
+        info={"edge_start": "ACCESSIBLE_BY"},
     )
     field_id: Mapped[str_26] = mapped_column(
         ForeignKey("fltr.field.id", ondelete="CASCADE"),
         index=True,
+        info={"edge_start": "FILTERS_DATA_FROM"},
     )
     lookup: Mapped[Lookup] = mapped_column(
         ENUM(
@@ -251,7 +256,7 @@ class Query(Base):
         {
             "schema": "fltr",
             "comment": "Filter queries",
-            "info": {"graph": "fltr_graph", "audited": True},
+            "info": {"graph": True, "audited": True},
         },
     )
 
@@ -261,16 +266,19 @@ class Query(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
+        info={"key_property": True},
     )
     user_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.user.id", ondelete="CASCADE"),
         index=True,
         default=set_owner_id,
+        info={"edge_start": "CREATED_BY"},
     )
     group_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.group.id", ondelete="CASCADE"),
         index=True,
         default=set_group_id,
+        info={"edge_start": "ACCESSIBLE_BY"},
     )
     name: Mapped[str_255] = mapped_column()
     object_type: Mapped[str_255] = mapped_column()

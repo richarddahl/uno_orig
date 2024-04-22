@@ -44,7 +44,7 @@ class User(Base):
         {
             "schema": "auth",
             "comment": "Application end-users",
-            "info": {"graph": "auth_graph", "audited": True},
+            "info": {"graph": True, "audited": True},
         },
     )
 
@@ -54,6 +54,7 @@ class User(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
+        info={"key_property": True},
     )
     email: Mapped[str_255] = mapped_column(unique=True)
     handle: Mapped[str_255] = mapped_column(unique=True)
@@ -61,6 +62,7 @@ class User(Base):
     customer_id: Mapped[Optional[str_26]] = mapped_column(
         ForeignKey("auth.customer.id", ondelete="CASCADE"),
         index=True,
+        info={"edge_start": "WORKS_FOR"},
     )
     is_superuser: Mapped[bool] = mapped_column(server_default=text("false"))
     is_customer_admin: Mapped[bool] = mapped_column(server_default=text("false"))
@@ -137,7 +139,7 @@ class Customer(Base):
         {
             "schema": "auth",
             "comment": "Application end-user customers",
-            "info": {"graph": "auth_graph", "audited": True},
+            "info": {"graph": True, "audited": True},
         },
     )
 
@@ -147,6 +149,7 @@ class Customer(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
+        info={"key_property": True},
     )
     name: Mapped[str_255] = mapped_column(unique=True)
     customer_type: Mapped[CustomerType] = mapped_column(
@@ -182,7 +185,7 @@ class Group(Base):
         {
             "schema": "auth",
             "comment": "Application end-user groups, child groups can be created for granular access control",
-            "info": {"graph": "auth_graph", "audited": True},
+            "info": {"graph": True, "audited": True},
         },
     )
 
@@ -192,14 +195,17 @@ class Group(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
+        info={"key_property": True},
     )
     customer_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.customer.id", ondelete="CASCADE"),
         index=True,
+        info={"edge_start": "IDENTIFIES_DATA_AS_BELONGING_TO"},
     )
     parent_id: Mapped[Optional[str_26]] = mapped_column(
         ForeignKey("auth.group.id", ondelete="SET NULL"),
         index=True,
+        info={"edge_start": "IS_A_CHILD_OF"},
     )
     name: Mapped[str_255] = mapped_column()
 
@@ -265,7 +271,7 @@ class GroupPermission(Base):
                     [READ, DELETE]
                 Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.
             """,
-            "info": {"graph": "auth_graph", "audited": True},
+            "info": {"graph": True, "audited": True},
         },
     )
 
@@ -274,6 +280,7 @@ class GroupPermission(Base):
     group_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.group.id", ondelete="CASCADE"),
         index=True,
+        info={"edge_start": "PROVIDES_PERMISSIONS_FOR_DATA_OF"},
     )
     name: Mapped[str_255] = mapped_column()
     permissions: Mapped[list] = mapped_column(
@@ -302,7 +309,7 @@ class Role(Base):
                 Roles, created by end user group admins, enable assignment of group_permissions
                 by functionality, department, etc... to users.
             """,
-            "info": {"graph": "auth_graph", "audited": True},
+            "info": {"graph": True, "audited": True},
         },
     )
 
@@ -312,10 +319,14 @@ class Role(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
+        # info={"edge_start": "HAS_ID", "edge_end": "HAS_ROLE"},
+        info={"key_property": True},
     )
     customer_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.customer.id", ondelete="CASCADE"),
         index=True,
+        # info={"edge_start": "LIMITS_ACCESS_TO_DATA_OF", "edge_end": "HAS_ROLE"},
+        info={"edge_start": "LIMITS_ACCESS_TO_DATA_OF"},
     )
     name: Mapped[str_255] = mapped_column()
     description: Mapped[str] = mapped_column()
