@@ -1,8 +1,8 @@
 """Initial Revision
 
-Revision ID: 011d5dd8ccab
+Revision ID: 7df3fcefbc85
 Revises: 
-Create Date: 2024-04-22 13:26:59.495806
+Create Date: 2024-04-23 15:26:59.071814
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '011d5dd8ccab'
+revision: str = '7df3fcefbc85'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -138,8 +138,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('group_id', 'name', name='uq_group_permission_name'),
     sa.UniqueConstraint('group_id', 'permissions', name='uq_group_permission_permissions'),
     schema='auth',
-    comment='\n                Permissions assigned to a group.\n                Created automatically by the DB via a trigger when a new group is created.\n                group_permission records are created for each group with the following combinations of permissions:\n                    [READ]\n                    [READ, CREATE]\n                    [READ, CREATE, UPDATE]\n                    [READ, CREATE, DELETE]\n                    [READ, CREATE, UPDATE, DELETE]\n                    [READ, UPDATE]\n                    [READ, UPDATE, DELETE]\n                    [READ, DELETE]\n                Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.\n            ',
-    info={'graph': True, 'audited': True}
+    comment='\n                Permissions assigned to a group.\n                Created automatically by the DB via a trigger when a new group is created.\n                group_permission records are created for each group with the following combinations of permissions:\n                    [READ]\n                    [READ, CREATE]\n                    [READ, CREATE, UPDATE]\n                    [READ, CREATE, DELETE]\n                    [READ, CREATE, UPDATE, DELETE]\n                    [READ, UPDATE]\n                    [READ, UPDATE, DELETE]\n                    [READ, DELETE]\n                Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.\n            '
     )
     op.create_index(op.f('ix_auth_group_permission_group_id'), 'group_permission', ['group_id'], unique=False, schema='auth')
     op.create_table('hashed_password',

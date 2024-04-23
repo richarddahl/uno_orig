@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from alembic.config import Config
 from alembic import command
 
@@ -240,8 +242,13 @@ def create_db(testing: bool = False):
                     except Exception as e:
                         print(e)
                         print("")
-                    conn.execute(text(create_vertex_function(table)))
-                    conn.execute(text(create_vertex_trigger(table)))
+                    try:
+                        if table.name == "customer":
+                            conn.execute(text(create_vertex_function(table)))
+                            conn.execute(text(create_vertex_trigger(table)))
+                    except Exception as e:
+                        print(e)
+                        print("")
                     try:
                         print(f"Creating Graph Nodes and Edges for Table: {table_name}")
                         conn.execute(

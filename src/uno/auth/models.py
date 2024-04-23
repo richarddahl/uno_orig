@@ -200,12 +200,12 @@ class Group(Base):
     customer_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.customer.id", ondelete="CASCADE"),
         index=True,
-        info={"edge_start": "IDENTIFIES_DATA_AS_BELONGING_TO"},
+        info={"edge_start": "IDENTIFIES_DATA_AS_BELONGING_TO_CUSTOMER"},
     )
     parent_id: Mapped[Optional[str_26]] = mapped_column(
         ForeignKey("auth.group.id", ondelete="SET NULL"),
         index=True,
-        info={"edge_start": "IS_A_CHILD_OF"},
+        info={"edge_start": "IS_A_CHILD_GROUP_OF"},
     )
     name: Mapped[str_255] = mapped_column()
 
@@ -271,7 +271,7 @@ class GroupPermission(Base):
                     [READ, DELETE]
                 Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.
             """,
-            "info": {"graph": True, "audited": True},
+            # "info": {"graph": True, "audited": True},
         },
     )
 
@@ -280,7 +280,7 @@ class GroupPermission(Base):
     group_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.group.id", ondelete="CASCADE"),
         index=True,
-        info={"edge_start": "PROVIDES_PERMISSIONS_FOR_DATA_OF"},
+        info={"edge_start": "PROVIDES_PERMISSIONS_FOR_DATA_FROM_GROUP"},
     )
     name: Mapped[str_255] = mapped_column()
     permissions: Mapped[list] = mapped_column(
@@ -326,7 +326,7 @@ class Role(Base):
         ForeignKey("auth.customer.id", ondelete="CASCADE"),
         index=True,
         # info={"edge_start": "LIMITS_ACCESS_TO_DATA_OF", "edge_end": "HAS_ROLE"},
-        info={"edge_start": "LIMITS_ACCESS_TO_DATA_OF"},
+        info={"edge_start": "LIMITS_ACCESS_TO_DATA_OF_CUSTOMER"},
     )
     name: Mapped[str_255] = mapped_column()
     description: Mapped[str] = mapped_column()
