@@ -154,7 +154,6 @@ async def test_create_customers(async_session):
     assert customer_0_first_role[0].name == "Small Business Admin"
 
 
-'''
 @pytest.mark.asyncio
 async def test_create_group_for_individual_exception(async_session):
     customer = await async_session.scalar(
@@ -478,4 +477,3 @@ async def test_update__user_with_is_superuser_exception(async_session):
     async_session.add(user)
     with pytest.raises(Exception):
         await async_session.flush()
-'''
