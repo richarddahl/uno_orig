@@ -54,7 +54,7 @@ class User(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
-        info={"key_property": True},
+        info={"graph_property": True},
     )
     email: Mapped[str_255] = mapped_column(unique=True)
     handle: Mapped[str_255] = mapped_column(unique=True)
@@ -66,10 +66,14 @@ class User(Base):
     )
     is_superuser: Mapped[bool] = mapped_column(server_default=text("false"))
     is_customer_admin: Mapped[bool] = mapped_column(server_default=text("false"))
-    is_verified: Mapped[bool] = mapped_column(server_default=text("false"))
+    is_verified: Mapped[bool] = mapped_column(
+        server_default=text("false"), info={"graph_property": False}
+    )
     is_locked: Mapped[bool] = mapped_column(server_default=text("false"))
     is_suspended: Mapped[bool] = mapped_column(server_default=text("false"))
-    suspension_expiration: Mapped[Optional[datetime.datetime]] = mapped_column()
+    suspension_expiration: Mapped[Optional[datetime.datetime]] = mapped_column(
+        info={"graph_property": False}
+    )
 
     # Relationships
     meta: Mapped["Meta"] = relationship()

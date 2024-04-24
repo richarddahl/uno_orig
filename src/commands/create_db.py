@@ -153,7 +153,6 @@ def create_db(testing: bool = False):
     command.upgrade(alembic_cfg, "head")
 
     eng = create_engine(
-        # f"{settings.DB_DRIVER}://{settings.DB_SCHEMA}_authenticator@/{db_name}",
         f"{settings.DB_DRIVER}://postgres@/{db_name}",
         echo=False,
     )
@@ -210,6 +209,8 @@ def create_db(testing: bool = False):
         conn.execute(text(CREATE_IS_CUSTOMER_ADMIN_FUNCTION))
         conn.execute(text(CREATE_GET_ALL_PERMISSIBLE_GROUPS_FUNCTION))
 
+        vertices = []  # List of tables that are vertices, to ensure we only create them once
+        edges = []  # List of table columns that are edges, to ensure we only create them once
         for table_name in Base.metadata.tables.keys():
             table = Base.metadata.tables[table_name]
 
@@ -232,23 +233,19 @@ def create_db(testing: bool = False):
                     except Exception as e:
                         print(e)
                         print("")
-
                 graph = table.info.get("graph", False)
                 if graph is True:
-                    try:
-                        print(
-                            f"Creating Graph Trigger Function for Table: {table_name}"
-                        )
-                    except Exception as e:
-                        print(e)
-                        print("")
-                    try:
-                        if table.name == "customer":
+                    if table_name not in vertices:
+                        vertices.append(table_name)
+                        try:
+                            print(
+                                f"Creating Graph Vertex Function for Table: {table_name}"
+                            )
                             conn.execute(text(create_vertex_function(table)))
                             conn.execute(text(create_vertex_trigger(table)))
-                    except Exception as e:
-                        print(e)
-                        print("")
+                        except Exception as e:
+                            print(e)
+                            print("")
                     try:
                         print(f"Creating Graph Nodes and Edges for Table: {table_name}")
                         conn.execute(
@@ -258,16 +255,19 @@ def create_db(testing: bool = False):
                         )
                         for column in table.columns:
                             edge_start = column.info.get("edge_start", None)
-                            if edge_start is not None:
-                                try:
-                                    conn.execute(
-                                        text(
-                                            f"SELECT ag_catalog.create_elabel('graph', '{edge_start}')"
+                            graph_property = column.info.get("graph_property", True)
+                            if edge_start is not None and graph_property is True:
+                                if edge_start not in edges:
+                                    edges.append(edge_start)
+                                    try:
+                                        conn.execute(
+                                            text(
+                                                f"SELECT ag_catalog.create_elabel('graph', '{edge_start}')"
+                                            )
                                         )
-                                    )
-                                except Exception as e:
-                                    print(e)
-                                    print("")
+                                    except Exception as e:
+                                        print(e)
+                                        print("")
                     except Exception as e:
                         print(e)
                         print("")

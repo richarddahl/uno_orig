@@ -51,25 +51,6 @@ str_255 = Annotated[str, 255]
 decimal = Annotated[Decimal, 19]
 
 
-class Base(AsyncAttrs, DeclarativeBase):
-    registry = registry(
-        type_annotation_map={
-            int: BIGINT,
-            datetime.datetime: TIMESTAMP(timezone=True),
-            datetime.date: DATE,
-            datetime.time: TIME,
-            str: VARCHAR,
-            Enum: ENUM,
-            bool: BOOLEAN,
-            list: ARRAY,
-            str_26: VARCHAR(26),
-            str_128: VARCHAR(128),
-            str_255: VARCHAR(255),
-            decimal: NUMERIC,
-        }
-    )
-
-
 # Creates the async engine and sets the echo to true if DEBUG is true
 async_engine = create_async_engine(settings.DB_URL)
 engine = create_engine(settings.DB_URL)
@@ -124,3 +105,43 @@ sessionmanager = DatabaseSessionManager()
 async def get_db():
     async with sessionmanager.session() as session:
         yield session
+
+
+class Base(AsyncAttrs, DeclarativeBase):
+    registry = registry(
+        type_annotation_map={
+            int: BIGINT,
+            datetime.datetime: TIMESTAMP(timezone=True),
+            datetime.date: DATE,
+            datetime.time: TIME,
+            str: VARCHAR,
+            Enum: ENUM,
+            bool: BOOLEAN,
+            list: ARRAY,
+            str_26: VARCHAR(26),
+            str_128: VARCHAR(128),
+            str_255: VARCHAR(255),
+            decimal: NUMERIC,
+        }
+    )
+
+    def graph_property_columns(self):
+        """Returns the columns that are graph properties, excluding edge properties."""
+        return [
+            column
+            for column in self.__table__.columns
+            if not column.info.get("edge_start", False)
+            or column.info.get("graph_property", True)
+        ]
+
+    def edge_columns(self):
+        """Returns the columns that are edge properties."""
+        return [
+            column
+            for column in self.__table__.columns
+            if not column.info.get("edge_start", True)
+            and not column.info.get("graph_property", True)
+        ]
+
+    def column_edge_name(self, column):
+        return column.name.replace("_id", "")
