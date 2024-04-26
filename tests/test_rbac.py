@@ -73,7 +73,17 @@ async def test_create_customers(async_session):
     customer_2 = Customer(name="Small Business", customer_type="SMALL_BUSINESS")
     customer_3 = Customer(name="Corporate", customer_type="CORPORATE")
     customer_4 = Customer(name="Enterprise", customer_type="ENTERPRISE")
-
+    # TODO determine how to set these attributes for the session globally
+    # await async_session.execute(
+    #    text(
+    #        f"""
+    #        SET ROLE {settings.DB_SCHEMA}_admin;
+    #        LOAD '$libdir/plugins/age.dylib';
+    #        SET search_path TO ag_catalog, auth, fltr, {settings.DB_SCHEMA};
+    #        """
+    #    )
+    # )
+    # await async_session.flush()
     async_session.add_all([customer_1, customer_2, customer_3, customer_4])
     await async_session.flush()
 

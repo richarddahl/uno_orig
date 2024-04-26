@@ -41,18 +41,18 @@ def create_insert_edge_function(table: Table):
                 ]
                 break
     func = f"""
-        /*
-        Function to create a new edge record when a new {schema_name}.{table_name} 
-        association table record is inserted.  Uses the table.info['edge'] property to
-        determine the edge label and the start_vertex and end_vertex properties to determine
-        the vertices to connect.
-        */
         CREATE OR REPLACE FUNCTION {schema_name}.{table_name}_insert_edge()
         RETURNS TRIGGER
         LANGUAGE plpgsql
         VOLATILE
         AS $BODY$
         BEGIN
+            /*
+            Function to create a new edge record when a new {schema_name}.{table_name} 
+            association table record is inserted.  Uses the table.info['edge'] property to
+            determine the edge label and the start_vertex and end_vertex properties to determine
+            the vertices to connect.
+            */
             SET ROLE {settings.DB_SCHEMA}_admin;
             LOAD '$libdir/plugins/age.dylib';
             SET search_path TO ag_catalog, auth, fltr, {settings.DB_SCHEMA};
@@ -126,12 +126,20 @@ def create_insert_vertex_function(table: Table):
         ]
     )
     func = f"""
+
         CREATE OR REPLACE FUNCTION {schema_name}.{table_name}_insert_vertex()
         RETURNS TRIGGER
         LANGUAGE plpgsql
         VOLATILE
         AS $BODY$
         BEGIN
+            /*
+            Function to create a new vertex record when a new {schema_name}.{table_name}
+            record is inserted.  Uses the table.info['vertex'] property to determine that a vertex must 
+            be created, and the:
+                column.info['edge'] property to determine edges to create
+                column.info['graph_property'] property to determine which columns are properties of the vertex
+            */
             SET ROLE {settings.DB_SCHEMA}_admin;
             LOAD '$libdir/plugins/age.dylib';
             SET search_path TO ag_catalog, auth, fltr, {settings.DB_SCHEMA};
