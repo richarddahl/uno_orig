@@ -28,6 +28,57 @@ def get_column_type(column: Column) -> str:
     return f"quote_nullable(NEW.{column.name}::{column.type})"
 
 
+def create_insert_edge_function(table: Table):
+    table_name = table.name
+    schema_name = table.schema
+
+    for column in table.columns:
+        if column.info.get("start_vertex", False) is True:
+            for fk in column.foreign_keys:
+                start_vertex = (
+                    fk.column.table.name.title(),
+                    get_column_type(column),
+                )
+        if column.info.get("end_vertex", False) is True:
+            for fk in column.foreign_keys:
+                end_vertex = (
+                    fk.column.table.name.title(),
+                    get_column_type(column),
+                )
+    func = f"""
+        CREATE OR REPLACE FUNCTION {schema_name}.{table_name}_insert_edge()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        VOLATILE
+        AS $BODY$
+        BEGIN
+            SET ROLE {settings.DB_SCHEMA}_admin;
+            LOAD '$libdir/plugins/age.dylib';
+            SET search_path TO ag_catalog, auth, fltr, {settings.DB_SCHEMA};
+            EXECUTE format('SELECT * FROM cypher(''graph'', $$
+                MATCH (v:{start_vertex[0]} {{id: %s}})
+                MATCH (w:{end_vertex[0]} {{id: %s}})
+                CREATE (v)-[a:{table.info.get("edge")}]->(w)
+            $$) AS (a agtype);', {start_vertex[1]}, {end_vertex[1]});
+            RETURN NEW;
+        END
+        $BODY$;
+    """
+    return func
+
+
+def create_insert_edge_trigger(table: Table):
+    table_name = table.name
+    schema_name = table.schema
+    return f"""
+        CREATE OR REPLACE TRIGGER {table_name}_insert_edge_trigger
+            AFTER INSERT
+            ON {schema_name}.{table_name}
+            FOR EACH ROW
+            EXECUTE FUNCTION {schema_name}.{table_name}_insert_edge();
+    """
+
+
 def create_insert_vertex_function(table: Table):
     table_name = table.name
     schema_name = table.schema

@@ -35,6 +35,8 @@ from sql.pysql.group_sql import (
 from sql.pysql.graph_sql import (
     create_insert_vertex_function,
     create_insert_vertex_trigger,
+    create_insert_edge_function,
+    create_insert_edge_trigger,
 )  # type: ignore
 
 from uno.base import Base
@@ -216,6 +218,8 @@ def create_db(testing: bool = False):
                 if fk_constraint.referred_table.name == "meta":
                     conn.execute(text(update_meta_trigger(table)))
 
+            if not hasattr(table, "info"):
+                continue
             table_info = table.info
             if table_info is not None:
                 if table_info.get("audited", False) is True:
@@ -273,8 +277,10 @@ def create_db(testing: bool = False):
                                     print(e)
                                     print("")
 
-                # Association tables will not generally be created as vertices, but will instead be created as edges.
+                # Association tables will not generally be created as vertices, but as edges.
                 # The tables info dictionary will reflect this with a key of "edge", and the value will be the edge name.
+                # The vertices identified by the FKs within the association table will be used as the start
+                # and end points for the edge and the edge name will be used to create the edge label.
                 table_edge = table.info.get("edge", False)
                 if table_edge is not False:
                     if table_edge not in edges:
@@ -289,15 +295,13 @@ def create_db(testing: bool = False):
                         except Exception as e:
                             print(e)
                             print("")
-                        # print(
-                        #    f"Creating Insert Edge Function for Table: {table_name}"
-                        # )
-                        # try:
-                        #    conn.execute(text(create_insert_edge_function(table)))
-                        #    conn.execute(text(create_insert_edge_trigger(table)))
-                        # except Exception as e:
-                        #    print(e)
-                        #    print("")
+                        print(f"Creating Insert Edge Function for Table: {table_name}")
+                        try:
+                            conn.execute(text(create_insert_edge_function(table)))
+                            conn.execute(text(create_insert_edge_trigger(table)))
+                        except Exception as e:
+                            print(e)
+                            print("")
 
         conn.close()
     eng.dispose()

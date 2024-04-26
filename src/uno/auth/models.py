@@ -377,7 +377,7 @@ role_group_permission = Table(
         ForeignKey("auth.role.id", ondelete="CASCADE"),
         nullable=False,
         primary_key=True,
-        info={"start_vertex": "Role"},
+        info={"start_vertex": True},
     ),
     Column(
         "group_permission_id",
@@ -385,7 +385,7 @@ role_group_permission = Table(
         ForeignKey("auth.group_permission.id", ondelete="CASCADE"),
         nullable=False,
         primary_key=True,
-        info={"end_vertex": "Group_Permission"},
+        info={"end_vertex": True},
     ),
     Index(
         "ix_role_id__group_permission_id",
@@ -407,7 +407,7 @@ user_role = Table(
         ForeignKey("auth.user.id", ondelete="CASCADE"),
         nullable=False,
         primary_key=True,
-        info={"start_vertex": "User"},
+        info={"start_vertex": True},
     ),
     Column(
         "role_id",
@@ -415,7 +415,7 @@ user_role = Table(
         ForeignKey("auth.role.id", ondelete="CASCADE"),
         nullable=False,
         primary_key=True,
-        info={"end_vertex": "Role"},
+        info={"end_vertex": True},
     ),
     Index(
         "ix_user_id__role_id",
