@@ -24,7 +24,7 @@ async def async_session_generator():
     return sessionmaker(
         engine,
         class_=AsyncSession,
-        # autoflush=False,
+        autoflush=False,
         expire_on_commit=False,
     )
 
