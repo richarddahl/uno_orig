@@ -296,12 +296,12 @@ def create_db(testing: bool = False):
                             print(e)
                             print("")
                         print(f"Creating Insert Edge Function for Table: {table_name}")
-                        try:
-                            conn.execute(text(create_insert_edge_function(table)))
-                            conn.execute(text(create_insert_edge_trigger(table)))
-                        except Exception as e:
-                            print(e)
-                            print("")
+                        # try:
+                        conn.execute(text(create_insert_edge_function(table)))
+                        conn.execute(text(create_insert_edge_trigger(table)))
+                        # except Exception as e:
+                        #    print(e)
+                        #    print("")
 
         conn.close()
     eng.dispose()

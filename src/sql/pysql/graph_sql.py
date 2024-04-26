@@ -7,14 +7,6 @@ from config import settings
 
 
 def get_column_type(column: Column) -> str:
-    # if column.table.name == "group_permission":
-    #    print(column.name)
-    #    print(column.type.python_type)
-    #    print(issubclass(column.type.python_type, list))
-    #    print(issubclass(column.type.python_type, str))
-    #    print(issubclass(column.type.python_type, int))
-    #    print(issubclass(column.type.python_type, bool))
-    #    print("")
     if issubclass(column.type.python_type, list):
         return f"to_jsonb(NEW.{column.name})"
     if issubclass(column.type.python_type, str):
@@ -31,21 +23,30 @@ def get_column_type(column: Column) -> str:
 def create_insert_edge_function(table: Table):
     table_name = table.name
     schema_name = table.schema
-
+    start_vertex = []
+    end_vertex = []
     for column in table.columns:
         if column.info.get("start_vertex", False) is True:
             for fk in column.foreign_keys:
-                start_vertex = (
+                start_vertex = [
                     fk.column.table.name.title(),
                     get_column_type(column),
-                )
+                ]
+                break
         if column.info.get("end_vertex", False) is True:
             for fk in column.foreign_keys:
-                end_vertex = (
+                end_vertex = [
                     fk.column.table.name.title(),
                     get_column_type(column),
-                )
+                ]
+                break
     func = f"""
+        /*
+        Function to create a new edge record when a new {schema_name}.{table_name} 
+        association table record is inserted.  Uses the table.info['edge'] property to
+        determine the edge label and the start_vertex and end_vertex properties to determine
+        the vertices to connect.
+        */
         CREATE OR REPLACE FUNCTION {schema_name}.{table_name}_insert_edge()
         RETURNS TRIGGER
         LANGUAGE plpgsql
