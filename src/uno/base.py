@@ -130,7 +130,7 @@ class Base(AsyncAttrs, DeclarativeBase):
         return [
             column
             for column in self.__table__.columns
-            if not column.info.get("edge_start", False)
+            if not column.info.get("edge", False)
             or column.info.get("graph_property", True)
         ]
 
@@ -139,7 +139,7 @@ class Base(AsyncAttrs, DeclarativeBase):
         return [
             column
             for column in self.__table__.columns
-            if not column.info.get("edge_start", True)
+            if not column.info.get("edge", True)
             and not column.info.get("graph_property", True)
         ]
 

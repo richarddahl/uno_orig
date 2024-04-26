@@ -36,7 +36,7 @@ async def async_session(async_session_generator):
                     SET session ROLE {settings.DB_SCHEMA}_writer;
                     SET session application_name = '{settings.SITE_NAME}';
                     SET session {settings.DB_SCHEMA}.user_id = 'ADMIN';
-                    """
+                """
             )
         )
         yield async_session
@@ -44,8 +44,6 @@ async def async_session(async_session_generator):
             await async_session.commit()
         except Exception:
             await async_session.close()
-            # await async_session.rollback()
-        # await async_session.close()
 
 
 @pytest.mark.asyncio

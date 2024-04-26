@@ -12,6 +12,8 @@
     used at the beginning of projects to create the initial db.  That said, Don't inject
     SQL into your own database.
 """
+from sqlalchemy import Table
+
 from config import settings
 
 
@@ -168,13 +170,12 @@ $$ language sql;
 """
 
 
-def update_meta_trigger(table_name: str):
-    _table_name = table_name.replace(".", "_")
+def update_meta_trigger(table: Table):
     return f"""
         -- Create the update_meta trigger for the table
-        CREATE OR REPLACE TRIGGER {_table_name}_update_meta_trigger
+        CREATE OR REPLACE TRIGGER {table.name}_update_meta_trigger
             AFTER UPDATE 
-            ON {table_name}
+            ON {table.schema}.{table.name}
             FOR EACH ROW
             EXECUTE FUNCTION audit.update_meta_record();
     """

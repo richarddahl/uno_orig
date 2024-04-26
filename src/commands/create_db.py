@@ -33,10 +33,8 @@ from sql.pysql.group_sql import (
 )  # type: ignore
 
 from sql.pysql.graph_sql import (
-    create_vertex_function,
-    create_vertex_trigger,
-    create_edge_function,
-    create_edge_trigger,
+    create_insert_vertex_function,
+    create_insert_vertex_trigger,
 )  # type: ignore
 
 from uno.base import Base
@@ -210,13 +208,13 @@ def create_db(testing: bool = False):
         conn.execute(text(CREATE_GET_ALL_PERMISSIBLE_GROUPS_FUNCTION))
 
         vertices = []  # List of tables that are vertices, to ensure we only create them once
-        edges = []  # List of table columns that are edges, to ensure we only create them once
+        edges = []  # List of tables or table columns that are edges, to ensure we only create them once
         for table_name in Base.metadata.tables.keys():
             table = Base.metadata.tables[table_name]
 
             for fk_constraint in table.foreign_key_constraints:
                 if fk_constraint.referred_table.name == "meta":
-                    conn.execute(text(update_meta_trigger(table_name)))
+                    conn.execute(text(update_meta_trigger(table)))
 
             table_info = table.info
             if table_info is not None:
@@ -229,48 +227,77 @@ def create_db(testing: bool = False):
                                 f"SELECT audit.enable_tracking('{table_name}'::regclass);"
                             )
                         )
-
                     except Exception as e:
                         print(e)
                         print("")
-                graph = table.info.get("graph", False)
-                if graph is True:
+
+                # The following code is used to create the graph functions and triggers for the tables.
+                # Generally, the tables will have a vertex key in the table.info dictionary.
+                # This is indicated by the tables info dictionary having a key of "vertex", and the value will be True.
+                table_vertex = table.info.get("vertex", False)
+                if table_vertex is not False:
                     if table_name not in vertices:
                         vertices.append(table_name)
+                        print(f"Creating Graph Vertex Label for Table: {table_name}")
                         try:
-                            print(
-                                f"Creating Graph Vertex Function for Table: {table_name}"
+                            conn.execute(
+                                text(
+                                    f"SELECT ag_catalog.create_vlabel('graph', '{table.name.title()}')"
+                                )
                             )
-                            conn.execute(text(create_vertex_function(table)))
-                            conn.execute(text(create_vertex_trigger(table)))
                         except Exception as e:
                             print(e)
                             print("")
-                    try:
-                        print(f"Creating Graph Nodes and Edges for Table: {table_name}")
-                        conn.execute(
-                            text(
-                                f"SELECT ag_catalog.create_vlabel('graph', '{table.name.title()}')"
-                            )
+
+                        print(
+                            f"Creating Insert Vertex Function for Table: {table_name}"
                         )
-                        for column in table.columns:
-                            edge_start = column.info.get("edge_start", None)
-                            graph_property = column.info.get("graph_property", True)
-                            if edge_start is not None and graph_property is True:
-                                if edge_start not in edges:
-                                    edges.append(edge_start)
-                                    try:
-                                        conn.execute(
-                                            text(
-                                                f"SELECT ag_catalog.create_elabel('graph', '{edge_start}')"
-                                            )
+                        try:
+                            conn.execute(text(create_insert_vertex_function(table)))
+                            conn.execute(text(create_insert_vertex_trigger(table)))
+                        except Exception as e:
+                            print(e)
+                            print("")
+                    for column in table.columns:
+                        column_edge = column.info.get("edge", False)
+                        if column_edge is not False:
+                            if column_edge not in edges:
+                                edges.append(column_edge)
+                                try:
+                                    conn.execute(
+                                        text(
+                                            f"SELECT ag_catalog.create_elabel('graph', '{column_edge}')"
                                         )
-                                    except Exception as e:
-                                        print(e)
-                                        print("")
-                    except Exception as e:
-                        print(e)
-                        print("")
+                                    )
+                                except Exception as e:
+                                    print(e)
+                                    print("")
+
+                # Association tables will not generally be created as vertices, but will instead be created as edges.
+                # The tables info dictionary will reflect this with a key of "edge", and the value will be the edge name.
+                table_edge = table.info.get("edge", False)
+                if table_edge is not False:
+                    if table_edge not in edges:
+                        edges.append(table_edge)
+                        print(f"Creating Graph Edge Label for Table: {table_name}")
+                        try:
+                            conn.execute(
+                                text(
+                                    f"SELECT ag_catalog.create_elabel('graph', '{table_edge}')"
+                                )
+                            )
+                        except Exception as e:
+                            print(e)
+                            print("")
+                        # print(
+                        #    f"Creating Insert Edge Function for Table: {table_name}"
+                        # )
+                        # try:
+                        #    conn.execute(text(create_insert_edge_function(table)))
+                        #    conn.execute(text(create_insert_edge_trigger(table)))
+                        # except Exception as e:
+                        #    print(e)
+                        #    print("")
 
         conn.close()
     eng.dispose()

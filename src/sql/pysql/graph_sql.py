@@ -1,32 +1,80 @@
-from sqlalchemy import Table
+import datetime
+
+from sqlalchemy import Table, Column
+
 
 from config import settings
 
 
-def create_graph_nodes_and_edges(table: Table):
-    for column in table.columns:
-        print(column)
-    print("")
+def get_column_type(column: Column) -> str:
+    # if column.table.name == "group_permission":
+    #    print(column.name)
+    #    print(column.type.python_type)
+    #    print(issubclass(column.type.python_type, list))
+    #    print(issubclass(column.type.python_type, str))
+    #    print(issubclass(column.type.python_type, int))
+    #    print(issubclass(column.type.python_type, bool))
+    #    print("")
+    if issubclass(column.type.python_type, list):
+        return f"to_jsonb(NEW.{column.name})"
+    if issubclass(column.type.python_type, str):
+        return f"quote_nullable(NEW.{column.name}::{column.type})"
+    if issubclass(column.type.python_type, bool):
+        return f"quote_nullable(NEW.{column.name})"
+    if issubclass(column.type.python_type, int):
+        return f"quote_nullable(NEW.{column.name}::{column.type})"
+    if issubclass(column.type.python_type, datetime.datetime):
+        return f"quote_nullable(NEW.{column.name}::{column.type})"
+    return f"quote_nullable(NEW.{column.name}::{column.type})"
 
 
-def create_vertex_function(table: Table):
+def create_insert_vertex_function(table: Table):
     table_name = table.name
-    columns = ", ".join(
+    schema_name = table.schema
+
+    edges = []
+    for column in table.columns:
+        if column.info.get("edge", False) is not False:
+            for fk in column.foreign_keys:
+                edges.append(
+                    (
+                        table_name.title(),
+                        fk.column.table.name.title(),
+                        column.info.get("edge"),
+                        get_column_type(table.columns["id"]),
+                        get_column_type(column),
+                    )
+                )
+    edge_creation_statements = " ".join(
+        [
+            f"""
+            EXECUTE format('SELECT * FROM cypher(''graph'', $$
+                MATCH (v:{edge[0]} {{id: %s}})
+                MATCH (w:{edge[1]} {{id: %s}})
+                CREATE (v)-[e:{edge[2]}]->(w)
+            $$) AS (e agtype);', {edge[3]}, {edge[4]});
+            """
+            for edge in edges
+        ]
+    )
+    property_names = ", ".join(
         [
             f"{column.name}: %s"
             for column in table.columns
-            if not column.info.get("edge_start", False)
+            if not column.info.get("edge")
+            and column.info.get("graph_property", True) is True
         ]
     )
-    placeholders = ", ".join(
+    property_values = ", ".join(
         [
-            f"quote_nullable(NEW.{column.name}::{column.type})"
+            get_column_type(column)
             for column in table.columns
-            if not column.info.get("edge_start", False)
+            if not column.info.get("edge", False)
+            and column.info.get("graph_property", True) is True
         ]
     )
-    return f"""
-        CREATE OR REPLACE FUNCTION {table_name}_create_vertex()
+    func = f"""
+        CREATE OR REPLACE FUNCTION {schema_name}.{table_name}_insert_vertex()
         RETURNS TRIGGER
         LANGUAGE plpgsql
         VOLATILE
@@ -34,74 +82,49 @@ def create_vertex_function(table: Table):
         BEGIN
             SET ROLE {settings.DB_SCHEMA}_admin;
             LOAD '$libdir/plugins/age.dylib';
-            SET search_path TO ag_catalog, auth;
+            SET search_path TO ag_catalog, auth, fltr, {settings.DB_SCHEMA};
             EXECUTE format('SELECT * FROM cypher(''graph'', $$
-                CREATE (v:{table_name.title()} {{{columns}}})$$)
-                AS (a agtype);', {placeholders});
+                CREATE (v:{table_name.title()} {{{property_names}}})
+            $$) AS (a agtype);', {property_values});
+            {edge_creation_statements}
             RETURN NEW;
         END
         $BODY$;
     """
+    return func
 
 
-def create_vertex_trigger(table: Table):
+def create_insert_vertex_trigger(table: Table):
     table_name = table.name
     schema_name = table.schema
     return f"""
-        CREATE OR REPLACE TRIGGER {table_name}_create_vertex_trigger
-            AFTER INSERT OR UPDATE OR DELETE
+        CREATE OR REPLACE TRIGGER {table_name}_insert_vertex_trigger
+            AFTER INSERT
             ON {schema_name}.{table_name}
             FOR EACH ROW
-            EXECUTE FUNCTION {table_name}_create_vertex();
+            EXECUTE FUNCTION {schema_name}.{table_name}_insert_vertex();
     """
 
 
-def create_edge_function(table: Table):
-    table_name = table.name
-    return f"""
-        CREATE OR REPLACE FUNCTION {table_name}_create_edge()
-        RETURNS TRIGGER
-        LANGUAGE plpgsql
-        AS $BODY$
-        DECLARE test ag_catalog.agtype;
-        BEGIN
-            SET ROLE {settings.DB_SCHEMA}_admin;
-            LOAD '$libdir/plugins/age.dylib';
-            SET search_path TO ag_catalog, auth, audit, fltr, {settings.DB_SCHEMA};
-            SELECT *
-            FROM ag_catalog.cypher('graph', $$
-                CREATE (v:{table_name})
-            $$) AS (v ag_catalog.agtype) INTO test;
-            RETURN test;
-        END;
-        $BODY$;
-    """
-
-
-def create_edge_trigger(table: Table):
+def create_update_graph_trigger(table: Table):
     table_name = table.name
     schema_name = table.schema
     return f"""
-        CREATE OR REPLACE TRIGGER {table_name}_create_edge_trigger
-            AFTER INSERT OR UPDATE OR DELETE
+        CREATE OR REPLACE TRIGGER {table_name}_update_graph_trigger
+            AFTER UPDATE
             ON {schema_name}.{table_name}
             FOR EACH ROW
-            EXECUTE FUNCTION {table_name}_create_edge();
+            EXECUTE FUNCTION {schema_name}.{table_name}_update_graph();
     """
 
 
-CREATE_INSERT_META_RECORD_FUNCTION = """
-/*
-Simple function to create a new meta row and return the id of the new row.
-Set as the server_default for the id column in all tables that have a meta column.
-*/
-
-CREATE OR REPLACE FUNCTION audit.insert_meta_record() RETURNS VARCHAR AS $$
-DECLARE meta_id VARCHAR(26);
-BEGIN
-    INSERT INTO audit.meta DEFAULT VALUES
-    RETURNING id INTO meta_id;
-    RETURN meta_id;
-END;
-$$ LANGUAGE plpgsql;
-"""
+def create_delete_graph_trigger(table: Table):
+    table_name = table.name
+    schema_name = table.schema
+    return f"""
+        CREATE OR REPLACE TRIGGER {table_name}_delete_graph_trigger
+            AFTER DELETE
+            ON {schema_name}.{table_name}
+            FOR EACH ROW
+            EXECUTE FUNCTION {schema_name}.{table_name}_delete_graph();
+    """

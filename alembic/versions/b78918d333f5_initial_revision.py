@@ -1,8 +1,8 @@
 """Initial Revision
 
-Revision ID: a87d74c56d80
+Revision ID: b78918d333f5
 Revises: 
-Create Date: 2024-04-24 12:00:26.853471
+Create Date: 2024-04-26 02:26:40.439684
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'a87d74c56d80'
+revision: str = 'b78918d333f5'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -39,7 +39,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('name'),
     schema='auth',
     comment='Application end-user customers',
-    info={'graph': True, 'audited': True}
+    info={'vertex': True, 'audited': True}
     )
     op.create_table('field',
     sa.Column('id', sa.VARCHAR(length=26), server_default=sa.text('audit.insert_meta_record()'), nullable=False),
@@ -56,7 +56,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('table_name', 'field_name'),
     schema='fltr',
     comment='Describes a column in a db table.',
-    info={'graph': True, 'audited': True}
+    info={'vertex': True, 'audited': True}
     )
     op.create_index(op.f('ix_fltr_field_table_name'), 'field', ['table_name'], unique=False, schema='fltr')
     op.create_table('group',
@@ -71,7 +71,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('customer_id', 'name', name='uq_group_customer_id_name'),
     schema='auth',
     comment='Application end-user groups, child groups can be created for granular access control',
-    info={'graph': True, 'audited': True}
+    info={'vertex': True, 'audited': True}
     )
     op.create_index(op.f('ix_auth_group_customer_id'), 'group', ['customer_id'], unique=False, schema='auth')
     op.create_index(op.f('ix_auth_group_parent_id'), 'group', ['parent_id'], unique=False, schema='auth')
@@ -85,7 +85,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='auth',
     comment='\n                Roles, created by end user group admins, enable assignment of group_permissions\n                by functionality, department, etc... to users.\n            ',
-    info={'graph': True, 'audited': True}
+    info={'vertex': True, 'audited': True}
     )
     op.create_index(op.f('ix_auth_role_customer_id'), 'role', ['customer_id'], unique=False, schema='auth')
     op.create_index('ix_customer_id_name', 'role', ['customer_id', 'name'], unique=False, schema='auth')
@@ -109,7 +109,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('handle'),
     schema='auth',
     comment='Application end-users',
-    info={'graph': True, 'audited': True}
+    info={'vertex': True, 'audited': True}
     )
     op.create_index(op.f('ix_auth_user_customer_id'), 'user', ['customer_id'], unique=False, schema='auth')
     op.create_table('access_log',
@@ -129,16 +129,18 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_audit_access_log_user_id'), 'access_log', ['user_id'], unique=False, schema='audit')
     op.create_table('group_permission',
-    sa.Column('id', sa.BIGINT(), sa.Identity(always=False), nullable=False),
+    sa.Column('id', sa.VARCHAR(length=26), server_default=sa.text('audit.insert_meta_record()'), nullable=False),
     sa.Column('group_id', sa.VARCHAR(length=26), nullable=False),
     sa.Column('name', sa.VARCHAR(length=255), nullable=False),
     sa.Column('permissions', postgresql.ARRAY(postgresql.ENUM('CREATE', 'READ', 'UPDATE', 'DELETE', name='permission', schema='auth')), nullable=False),
     sa.ForeignKeyConstraint(['group_id'], ['auth.group.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['id'], ['audit.meta.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('group_id', 'name', name='uq_group_permission_name'),
     sa.UniqueConstraint('group_id', 'permissions', name='uq_group_permission_permissions'),
     schema='auth',
-    comment='\n                Permissions assigned to a group.\n                Created automatically by the DB via a trigger when a new group is created.\n                group_permission records are created for each group with the following combinations of permissions:\n                    [READ]\n                    [READ, CREATE]\n                    [READ, CREATE, UPDATE]\n                    [READ, CREATE, DELETE]\n                    [READ, CREATE, UPDATE, DELETE]\n                    [READ, UPDATE]\n                    [READ, UPDATE, DELETE]\n                    [READ, DELETE]\n                Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.\n            '
+    comment='\n                Permissions assigned to a group.\n                Created automatically by the DB via a trigger when a new group is created.\n                group_permission records are created for each group with the following combinations of permissions:\n                    [READ]\n                    [READ, CREATE]\n                    [READ, CREATE, UPDATE]\n                    [READ, CREATE, DELETE]\n                    [READ, CREATE, UPDATE, DELETE]\n                    [READ, UPDATE]\n                    [READ, UPDATE, DELETE]\n                    [READ, DELETE]\n                Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.\n            ',
+    info={'vertex': True}
     )
     op.create_index(op.f('ix_auth_group_permission_group_id'), 'group_permission', ['group_id'], unique=False, schema='auth')
     op.create_table('hashed_password',
@@ -160,7 +162,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('user_id', 'role_id'),
     schema='auth',
     comment='Assigned by customer_admin users to assign roles to users based on organization requirements.',
-    info={'association_graph': 'auth_graph', 'audited': True}
+    info={'edge': 'HAS_ROLE', 'audited': True}
     )
     op.create_index('ix_user_id__role_id', 'user__role', ['user_id', 'role_id'], unique=False, schema='auth')
     op.create_table('filter',
@@ -191,7 +193,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('group_id', 'field_id', 'lookup', 'include', 'match', 'bigint_value', 'boolean_value', 'date_value', 'decimal_value', 'related_table', 'related_id', 'string_value', 'text_value', 'time_value', 'timestamp_value', postgresql_nulls_not_distinct=True),
     schema='fltr',
     comment='A db column bound to a value.',
-    info={'graph': True, 'audited': True}
+    info={'vertex': True, 'audited': True}
     )
     op.create_index('ix_filter__unique_together', 'filter', ['group_id', 'field_id', 'lookup', 'include', 'match'], unique=False, schema='fltr')
     op.create_index(op.f('ix_fltr_filter_field_id'), 'filter', ['field_id'], unique=False, schema='fltr')
@@ -215,20 +217,20 @@ def upgrade() -> None:
     sa.UniqueConstraint('group_id', 'name'),
     schema='fltr',
     comment='Filter queries',
-    info={'graph': True, 'audited': True}
+    info={'vertex': True, 'audited': True}
     )
     op.create_index(op.f('ix_fltr_query_group_id'), 'query', ['group_id'], unique=False, schema='fltr')
     op.create_index(op.f('ix_fltr_query_user_id'), 'query', ['user_id'], unique=False, schema='fltr')
     op.create_index('ix_group_id_name_user_query', 'query', ['group_id', 'name'], unique=False, schema='fltr')
     op.create_table('role__group_permission',
     sa.Column('role_id', sa.VARCHAR(length=26), nullable=False),
-    sa.Column('group_permission_id', sa.BIGINT(), nullable=False),
+    sa.Column('group_permission_id', sa.VARCHAR(length=26), nullable=False),
     sa.ForeignKeyConstraint(['group_permission_id'], ['auth.group_permission.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['role_id'], ['auth.role.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('role_id', 'group_permission_id'),
     schema='auth',
     comment='Assigned by customer_admin users to assign group_permissions to roles based on organization requirements.',
-    info={'association_graph': 'auth_graph', 'audited': True}
+    info={'edge': 'HAS_GROUP_PERMISSION', 'audited': True}
     )
     op.create_index('ix_role_id__group_permission_id', 'role__group_permission', ['role_id', 'group_permission_id'], unique=False, schema='auth')
     op.create_table('query__filter',
@@ -238,7 +240,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['query_id'], ['fltr.query.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('query_id', 'filter_id'),
     schema='fltr',
-    info={'association_graph': 'fltr_graph', 'audited': True}
+    info={'edge': 'HAS_FILTER', 'audited': True}
     )
     op.create_table('query__subquery',
     sa.Column('query_id', sa.VARCHAR(length=26), nullable=False),
@@ -247,7 +249,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['subquery_id'], ['fltr.query.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('query_id', 'subquery_id'),
     schema='fltr',
-    info={'association_graph': 'fltr_graph', 'audited': True}
+    info={'edge': 'HAS_SUBQUERY', 'audited': True}
     )
     # ### end Alembic commands ###
 

@@ -37,7 +37,7 @@ class Field(Base):
         {
             "schema": "fltr",
             "comment": "Describes a column in a db table.",
-            "info": {"graph": True, "audited": True},
+            "info": {"vertex": True, "audited": True},
         },
     )
 
@@ -47,7 +47,7 @@ class Field(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
-        info={"key_property": True},
+        info={"graph_property": True},
     )
     table_name: Mapped[str_255] = mapped_column(index=True)
     field_name: Mapped[str_255] = mapped_column()
@@ -165,7 +165,7 @@ class Filter(Base):
         {
             "schema": "fltr",
             "comment": "A db column bound to a value.",
-            "info": {"graph": True, "audited": True},
+            "info": {"vertex": True, "audited": True},
         },
     )
 
@@ -175,24 +175,24 @@ class Filter(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
-        info={"key_property": True},
+        info={"graph_property": True},
     )
     user_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.user.id", ondelete="CASCADE"),
         index=True,
         default=set_owner_id,
-        info={"edge_start": "CREATED_BY"},
+        info={"edge": "CREATED_BY"},
     )
     group_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.group.id", ondelete="CASCADE"),
         index=True,
         default=set_group_id,
-        info={"edge_start": "ACCESSIBLE_BY"},
+        info={"edge": "ACCESSIBLE_BY"},
     )
     field_id: Mapped[str_26] = mapped_column(
         ForeignKey("fltr.field.id", ondelete="CASCADE"),
         index=True,
-        info={"edge_start": "FILTERS_DATA_FROM"},
+        info={"edge": "FILTERS_DATA_FROM"},
     )
     lookup: Mapped[Lookup] = mapped_column(
         ENUM(
@@ -256,7 +256,7 @@ class Query(Base):
         {
             "schema": "fltr",
             "comment": "Filter queries",
-            "info": {"graph": True, "audited": True},
+            "info": {"vertex": True, "audited": True},
         },
     )
 
@@ -266,19 +266,19 @@ class Query(Base):
         primary_key=True,
         server_default=func.audit.insert_meta_record(),
         server_onupdate=FetchedValue(),
-        info={"key_property": True},
+        info={"graph_property": True},
     )
     user_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.user.id", ondelete="CASCADE"),
         index=True,
         default=set_owner_id,
-        info={"edge_start": "CREATED_BY"},
+        info={"edge": "CREATED_BY"},
     )
     group_id: Mapped[str_26] = mapped_column(
         ForeignKey("auth.group.id", ondelete="CASCADE"),
         index=True,
         default=set_group_id,
-        info={"edge_start": "ACCESSIBLE_BY"},
+        info={"edge": "ACCESSIBLE_BY"},
     )
     name: Mapped[str_255] = mapped_column()
     object_type: Mapped[str_255] = mapped_column()
@@ -339,6 +339,7 @@ query_filter = Table(
         ForeignKey("fltr.query.id", ondelete="CASCADE"),
         primary_key=True,
         nullable=False,
+        info={"start_vertex": "Query"},
     ),
     Column(
         "filter_id",
@@ -346,9 +347,10 @@ query_filter = Table(
         ForeignKey("fltr.filter.id", ondelete="CASCADE"),
         primary_key=True,
         nullable=False,
+        info={"end_vertex": "Filter"},
     ),
     schema="fltr",
-    info={"association_graph": "fltr_graph", "audited": True},
+    info={"edge": "HAS_FILTER", "audited": True},
 )
 
 query_subquery = Table(
@@ -360,6 +362,7 @@ query_subquery = Table(
         ForeignKey("fltr.query.id", ondelete="CASCADE"),
         primary_key=True,
         nullable=False,
+        info={"start_vertex": "Query"},
     ),
     Column(
         "subquery_id",
@@ -367,7 +370,8 @@ query_subquery = Table(
         ForeignKey("fltr.query.id", ondelete="CASCADE"),
         primary_key=True,
         nullable=False,
+        info={"end_vertex": "Query"},
     ),
     schema="fltr",
-    info={"association_graph": "fltr_graph", "audited": True},
+    info={"edge": "HAS_SUBQUERY", "audited": True},
 )

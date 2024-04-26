@@ -59,7 +59,7 @@ CREATE OR REPLACE FUNCTION auth.create_group_for_customer_function()
 DECLARE
     new_group_id VARCHAR(26);
     new_role_id VARCHAR(26);
-    new_group_permission_id BIGINT; 
+    new_group_permission_id VARCHAR(26); 
 BEGIN
     IF auth.can_insert_group(NEW.id) = true THEN
         INSERT INTO auth.group(customer_id, name)
@@ -77,7 +77,6 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-
 $$
 """
 
@@ -126,7 +125,6 @@ BEGIN
         VALUES (NEW.id, ARRAY['READ', 'DELETE']::auth.permission[], 'Read and Delete');
     RETURN NEW;
 END;
-
 $$
 """
 
@@ -159,78 +157,3 @@ BEGIN
 END;
 $$;
 """
-
-
-'''
-NOT NEEDED BUT MAY BE HELPFUL AS REFERENCE 
-NOT NEEDED BUT MAY BE HELPFUL AS REFERENCE 
-NOT NEEDED BUT MAY BE HELPFUL AS REFERENCE 
-
-CHECK_GROUP_TYPE_FUNCTION = """
-    /*
-    Function to ensure that child groups have the same group_type as their parent.
-    Raises an exception if the group_type of the parent group does not match the
-    new record group_type.
-    */
-    CREATE OR REPLACE FUNCTION auth.check_group_type()
-        RETURNS TRIGGER
-        LANGUAGE plpgsql
-    AS $$
-    DECLARE
-        customer_type uno.group.group_type%TYPE;
-    BEGIN
-        IF NEW.parent_id IS NULL THEN
-            RETURN NEW;
-        END IF;
-
-        SELECT group_type INTO parent_group_type
-        FROM auth.group
-        WHERE id = NEW.parent_id;
-
-        IF parent_group_type IS NOT NULL AND parent_group_type <> NEW.group_type THEN
-            RAISE EXCEPTION 'Parent group type does not match new record group type';
-        END IF;
-        
-        RETURN NEW;
-    END
-    $$;
-"""
-
-CHECK_GROUP_TYPE_TRIGGER = """
-    -- The trigger to call the function: BEFORE INSERT
-    CREATE OR REPLACE TRIGGER check_group_type_trigger
-    BEFORE INSERT ON auth.group
-    FOR EACH ROW
-    EXECUTE FUNCTION auth.check_group_type();
-"""
-CHECK_GROUP_PERMISSION_CUSTOMER_FUNCTION = f"""
-/*
-*/
-CREATE OR REPLACE FUNCTION auth.check_group_permission()
-    RETURNS TRIGGER
-    LANGUAGE plpgsql
-AS $$
-DECLARE
-    user_customer_id VARCHAR(26);
-BEGIN
-    SELECT customer_id INTO user_customer_id
-    FROM auth.user_admin
-    WHERE id = NEW.parent_id;
-
-    IF parent_group_type IS NOT NULL AND parent_group_type <> NEW.group_type THEN
-        RAISE EXCEPTION 'Parent group type does not match new record group type';
-    END IF;
-    
-    RETURN NEW;
-END
-$$;
-"""
-
-CHECK_GROUP_TYPE_TRIGGER = f"""
--- The trigger to call the function: BEFORE INSERT
-CREATE OR REPLACE TRIGGER check_group_type_trigger
-BEFORE INSERT ON auth.group
-FOR EACH ROW
-EXECUTE FUNCTION auth.check_group_type();
-"""
-'''
