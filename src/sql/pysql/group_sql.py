@@ -52,7 +52,7 @@ Function to create a new Group record when a new Customer is inserted.
 The Group record is created with the same name as the Customer.
 Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.
 */
-CREATE OR REPLACE FUNCTION auth.create_group_for_customer_function()
+CREATE OR REPLACE FUNCTION auth.group_for_customer_function()
     RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -82,10 +82,10 @@ $$
 
 CREATE_GROUP_FOR_CUSTOMER_TRIGGER = """
 -- The trigger to call the function: AFTER INSERT
-CREATE OR REPLACE TRIGGER create_group_for_customer_trigger
+CREATE OR REPLACE TRIGGER group_for_customer_trigger
     AFTER INSERT ON auth.customer
     FOR EACH ROW
-    EXECUTE FUNCTION auth.create_group_for_customer_function();
+    EXECUTE FUNCTION auth.group_for_customer_function();
 """
 
 CREATE_GROUP_PERMISSION_FUNCTION = """
@@ -102,7 +102,7 @@ group_permissions record created for each group with the following combinations 
     [READ, DELETE]
     Deleted automatically by the DB via the FK Constraints ondelete when an group is deleted.
 */
-CREATE OR REPLACE FUNCTION auth.create_group_permission_function()
+CREATE OR REPLACE FUNCTION auth.group_permission_function()
     RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -130,10 +130,10 @@ $$
 
 CREATE_GROUP_PERMISSION_TRIGGER = """
 -- The trigger to call the function: AFTER INSERT
-CREATE OR REPLACE TRIGGER create_group_permission_trigger
+CREATE OR REPLACE TRIGGER group_permission_trigger
     AFTER INSERT ON auth.group
     FOR EACH ROW
-    EXECUTE FUNCTION auth.create_group_permission_function();
+    EXECUTE FUNCTION auth.group_permission_function();
 """
 
 CREATE_GET_ALL_PERMISSIBLE_GROUPS_FUNCTION = """

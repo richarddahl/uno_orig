@@ -22,7 +22,10 @@ from contextlib import asynccontextmanager
 async def async_session_generator():
     engine = create_async_engine(f"{settings.DB_URL}_test", echo=False)
     return sessionmaker(
-        engine, class_=AsyncSession, autoflush=False, expire_on_commit=False
+        engine,
+        class_=AsyncSession,
+        # autoflush=False,
+        expire_on_commit=False,
     )
 
 
